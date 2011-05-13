@@ -1,0 +1,53 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+my ($wd, $wf, $nf, $l);
+$wd = $wf = $nf = $l = "";
+while (<>) {
+    $l = &trim($_);
+    if ($l =~ /^(\/.+?)\/*:$/) {
+        $wd = "$1/";
+    }
+    elsif ($l =~ /.+\.[mM][pP]3$/) {
+        $wf = "\"${wd}${l}\"";
+        $wf =~ s/\$/\\\\\$/;
+        unless ($wf =~ /.+\.mp3/) {
+            $nf = $wf;
+            $nf =~ s/[mM][pP]3/mp3/;
+            `mv $wf $nf`;
+            $wf = $nf;
+        }
+        if (&get_track($wf) eq "00") {
+            `eyeD3 --to-v2.3 --remove-comments --remove-lyrics --publisher="" --rename="00 - %t" $wf`;
+        }
+        else {
+            `eyeD3 --to-v2.3 --remove-comments --remove-lyrics --publisher="" --rename="%n - %t" $wf`;
+        }
+    }
+    elsif ($l =~ m/.+\.(sfv|nfo|m3u|url|txt|log|db|mht|ini|cue)$/) {
+        $wf = "\"" . $wd . $l ."\"";
+        $wf =~ s/\$/\\\\\$/;
+        `rm $wf`;
+    }
+}
+
+sub trim {
+    my $string = shift;
+    $string =~ s/^\s+//;
+    $string =~ s/\s+$//;
+    return $string;
+}
+
+sub get_track {
+    my $file = shift;
+    my $tags = `eyeD3 -v $file`;
+    if ($tags =~ /<Track\snumber\/Position\sin\sset\s\(TRCK\):\s(\d+)\/*\d*>/s) {
+        return $1;
+    }
+    else {
+        `eyeD3 --track=0 $file`;
+        return "00";
+    }
+}
