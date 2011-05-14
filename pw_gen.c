@@ -4,22 +4,21 @@
 #include <string.h>
 
 int main(int argc, char * argv[]) {
+    char *charlist = "abcdefghijklmnopqrstuvwxyz"
+                     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                     "1234567890`-=~!@#$%^&*()_+"
+                     "[]\\{}|;':\",./<>?";
+
     if (argc == 2 || (argc == 3 && strcmp(argv[2], "-a") == 0)) {
         int chars = atoi(argv[1]);
-        srand((unsigned int)time(NULL));
+        int len = ((argc == 3) ? 62 : strlen(charlist));
         int i;
-        int num;
-        for (i = 0; i < chars; ++i) {
-            num = (rand() % 94) + 33;
-            if (argc == 3) {
-                while (!((num >= 48 && num <= 57) ||
-                         (num >= 65 && num <= 90) ||
-                         (num >= 97 && num <= 122))) {
-                    num = (rand() % 94) + 33;
-                }
-            }
-            printf("%c", num);
-        }
+
+        srand((unsigned int)time(NULL));
+
+        for (i = 0; i < chars; ++i)
+            printf("%c", charlist[rand() % len]);
+
         printf("\n");
         return 0;
     }
