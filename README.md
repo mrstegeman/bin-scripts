@@ -16,9 +16,12 @@ Some useful scripts from my home directory
 * info.pl
     * Perl script that displays the Arch logo and some theme info.
 * prettyxml.pl
-    * Perl script to output an SML file or STDIN as properly formatted XML.
-* pw\_gen.c
-    * Random password generator. Compile, then pass it the number of characters you want, and optionally the -a option at the end to indicate alpha-numeric only.
+    * Perl script to output an XML file or STDIN as properly formatted XML.
+* pw\_gen.sh
+    * Random password generator.
+    * `./pw_gen.sh -n 15 [-a]`
+        * -n to indicate number of characters
+        * -a to indicate alpha-numeric only
 * sansa-convert.sh
     * Creates videos compatible with a Sandisk Sansa e260 series mp3 player running Rockbox.
 * start\_conky.sh
