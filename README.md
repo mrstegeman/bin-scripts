@@ -23,7 +23,7 @@ Some useful scripts from my home directory
     * Creates videos compatible with a Sandisk Sansa e260 series mp3 player running Rockbox.
 * start\_conky.sh
     * Starts my 5 conky instances.
-* tag-convert
-    * Converts id3 tags from mp3 files to something usable and renames files properly. Pipe output of 'tracklist' from .bash\_aliases into this.
+* tag-convert.sh
+    * Converts ID3 tags from mp3 files to version 2.3 and renames files properly.
 * vnote2txt.pl
     * Perl script to convert a vNote file to plaintext.
