@@ -1,0 +1,4 @@
+#!/bin/sh
+
+wf=$(echo "$5" | sed -e 's/[\t ]*(working copy)$//')
+vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" "$6" "$wf"
