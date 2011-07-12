@@ -10,7 +10,7 @@ Some useful scripts from my home directory
 * get\_ip.pl
     * Simple Perl script to determine internal IP address on eth0/wlan0.
 * git\_diff\_wrapper
-    * Wrapper to use vimdiff as the git diff tool -- set in ~/.gitconfig.
+    * Wrapper to use vimdiff as the git diff tool -- set in `~/.gitconfig`
 * gmail-mailto.sh
     * Script that can be set as XFCE's default e-mail handler to open mailto: links in gmail.
 * info.pl
@@ -26,6 +26,8 @@ Some useful scripts from my home directory
     * Creates videos compatible with a Sandisk Sansa e260 series mp3 player running Rockbox.
 * start\_conky.sh
     * Starts my 5 conky instances.
+* svn\_diff\_wrapper
+    * Wrapper to use vimdiff as the svn diff tool -- set in `~/.subversion/config`
 * tag-convert.sh
     * Converts ID3 tags from mp3 files to version 2.3 and renames files properly.
 * vnote2txt.pl

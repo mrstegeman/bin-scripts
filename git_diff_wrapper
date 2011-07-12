@@ -1,2 +1,3 @@
 #!/bin/sh
-vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" "$2" "$5"
+
+vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
