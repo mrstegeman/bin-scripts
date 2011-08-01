@@ -8,7 +8,7 @@ use File::Basename;
 ## Config options ##
 ####################
 
-## What distro logo to use to use, Available "Archlinux Debian Ubuntu None" ##
+## What distro logo to use to use ##
 my $OS = 'ArchLinux';
 
 ## What values to display ##

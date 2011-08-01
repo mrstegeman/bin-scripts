@@ -7,6 +7,8 @@ Some useful scripts from my home directory
 * dir\_walk.pl
     * Perl script that recursively walks 2 or more directories, scanning for differences in file metadata. 
     * `./dir_walk.pl dir1 dir2 [dir3 dir4 .. dirN]`
+* find\_etc\_orphans.sh
+    * Find files in `/etc` that are not own by any package (ArchLinux only).
 * get\_ip.pl
     * Simple Perl script to determine internal IP address on eth0/wlan0.
 * git\_diff\_wrapper
