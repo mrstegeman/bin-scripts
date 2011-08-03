@@ -32,7 +32,11 @@ Some useful scripts from my home directory
     * Wrapper to use vimdiff as the svn diff tool -- set in `~/.subversion/config`
 * tag-convert.sh
     * Converts ID3 tags from mp3 files to version 2.3 and renames files properly.
+* tasks.sh
+    * Shows task lists for conky.
 * termcolors.sh
     * Displays terminal color scheme as Space Invaderscharacters.
+* updates.sh
+    * Displays number of updates available through pacman.
 * vnote2txt.pl
     * Perl script to convert a vNote file to plaintext.
