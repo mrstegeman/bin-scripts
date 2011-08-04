@@ -15,8 +15,6 @@ Some useful scripts from my home directory
     * Wrapper to use vimdiff as the git diff tool -- set in `~/.gitconfig`
 * gmail-mailto.sh
     * Script that can be set as XFCE's default e-mail handler to open mailto: links in gmail.
-* info.pl
-    * Perl script that displays the Arch logo and some theme info.
 * prettyxml.pl
     * Perl script to output an XML file or STDIN as properly formatted XML.
 * pw\_gen.sh
