@@ -34,7 +34,5 @@ Some useful scripts from my home directory
     * Shows task lists for conky.
 * termcolors.sh
     * Displays terminal color scheme.
-* updates.sh
-    * Displays number of updates available through pacman.
 * vnote2txt.pl
     * Perl script to convert a vNote file to plaintext.
