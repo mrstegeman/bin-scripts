@@ -7,6 +7,8 @@ Some useful scripts from my home directory
 * dir\_walk.pl
     * Perl script that recursively walks 2 or more directories, scanning for differences in file metadata. 
     * `./dir_walk.pl dir1 dir2 [dir3 dir4 .. dirN]`
+* dispswitch.sh
+    * Bash script to switch HDMI display on and off.
 * find\_etc\_orphans.sh
     * Find files in `/etc` that are not own by any package (ArchLinux only).
 * get\_ip.pl
@@ -15,6 +17,8 @@ Some useful scripts from my home directory
     * Wrapper to use vimdiff as the git diff tool -- set in `~/.gitconfig`
 * gmail-mailto.sh
     * Script that can be set as XFCE's default e-mail handler to open mailto: links in gmail.
+* pkg-clean.sh
+    * Clean up pacman packages so that only latest version of each package exists per architecture. Useful on shared pacman cache.
 * prettyxml.pl
     * Perl script to output an XML file or STDIN as properly formatted XML.
 * pw\_gen.sh
@@ -34,5 +38,7 @@ Some useful scripts from my home directory
     * Shows task lists for conky.
 * termcolors.sh
     * Displays terminal color scheme.
+* touchtoggle.sh
+    * Bash script to switch touchpad on and off.
 * vnote2txt.pl
     * Perl script to convert a vNote file to plaintext.
