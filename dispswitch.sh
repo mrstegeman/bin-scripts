@@ -9,6 +9,6 @@ then
 else
     if (xrandr | grep "$EXT connected")
     then
-        xrandr --output "$INT" --primary --output "$EXT" --auto --above "$INT"
+        xrandr --output "$INT" --primary --output "$EXT" --auto --left-of "$INT"
     fi
 fi

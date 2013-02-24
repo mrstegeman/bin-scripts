@@ -1,7 +1,7 @@
 #!/bin/bash
 
-pkgdir='/mnt/silverado/pacman/pkg'
-exts=('-i686.pkg.tar.xz' '-x86_64.pkg.tar.xz' '-any.pkg.tar.xz')
+pkgdir='/mnt/atlas/pacman/pkg'
+exts=('-x86_64.pkg.tar.xz' '-any.pkg.tar.xz')
 
 lastfile=
 
