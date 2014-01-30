@@ -1,0 +1,168 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use File::Find;
+use File::Path qw(make_path);
+use File::Slurp;
+use LWP::Simple;
+# Make sure Crypt:SSLEay is also installed
+
+# User-defined variables
+my $outDir = '/run/media/michael/ubuntu-mirror/android/';
+my $baseUrl = 'https://dl-ssl.google.com/android/repository/';
+my $repoXmlBase = 'repository-';        # start at 8
+my $addonsXmlBase = 'addons_list-';     # start at 2
+
+# Script begins here
+my $repoXmlUrl = $baseUrl . $repoXmlBase;
+my $repoXmlFile = $outDir . $repoXmlBase;
+
+my %fetched = ();
+
+make_path($outDir) unless -d $outDir;
+
+# Find correct repo XML file, as they tend to increment once in a while.
+my $i = 8;
+while (head($repoXmlUrl . "$i.xml"))
+{
+    $i++;
+}
+$i--;
+$repoXmlUrl .= "$i.xml";
+$repoXmlFile .= "$i.xml";
+
+if (getstore($repoXmlUrl, $repoXmlFile) != 200)
+{
+    print "Failed to download: $repoXmlUrl\n";
+    exit 1;
+}
+$fetched{$repoXmlFile} = 1;
+my $repository = read_file($repoXmlFile);
+
+while ($repository =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
+{
+    my $url = $baseUrl . $1;
+    my $file = $outDir . $1;
+    if (not -f $file)
+    {
+        print "Fetching: $url ... ";
+        if (getstore($url, $file) == 200)
+        {
+            $fetched{$file} = 1;
+            print "SUCCESS\n";
+        }
+        else
+        {
+            print "FAILED\n";
+        }
+    }
+    else
+    {
+        $fetched{$file} = 1;
+    }
+}
+
+my $addonsXmlUrl = $baseUrl . $addonsXmlBase;
+my $addonsXmlFile = $outDir . $addonsXmlBase;
+
+# Find correct addons XML file, as they tend to increment once in a while.
+$i = 2;
+while (head($addonsXmlUrl . "$i.xml"))
+{
+    $i++;
+}
+$i--;
+$addonsXmlUrl .= "$i.xml";
+$addonsXmlFile .= "$i.xml";
+
+if (getstore($addonsXmlUrl, $addonsXmlFile) != 200)
+{
+    print "Failed to download: $addonsXmlUrl\n";
+    exit 1;
+}
+$fetched{$addonsXmlFile} = 1;
+my $addons = read_file($addonsXmlFile);
+
+while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
+{
+    my $u = $1;
+    my $url = '';
+    my $file = '';
+    my $newBaseDir = '';
+    if ($u =~ /^http/)
+    {
+        if ($u =~ /^$baseUrl/)
+        {
+            $url = $u;
+            my $tmpFile = substr($u, length($baseUrl));
+            $newBaseDir = substr($tmpFile, 0, rindex($tmpFile, '/') + 1);
+            if (defined $newBaseDir)
+            {
+                my $tmpDir = $outDir . $newBaseDir;
+                make_path($tmpDir) unless -d $tmpDir;
+            }
+            $file = $outDir . $tmpFile;
+        }
+        else
+        {
+            print "Not fetching URL: $u\n";
+        }
+    }
+    else
+    {
+        $url = $baseUrl . $u;
+        $file = $outDir . $u;
+    }
+    
+    if ($url ne '' and $file ne '')
+    {
+        if (getstore($url, $file) == 200)
+        {
+            $fetched{$file} = 1;
+            my $addon = read_file($file);
+            while ($addon =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
+            {
+                my $a = $1;
+                if ($a =~ /^http/)
+                {
+                    print "Not fetching URL: $a\n";
+                }
+                else
+                {
+                    $url = $baseUrl . $newBaseDir . $a;
+                    $file = $outDir . $newBaseDir . $a;
+                    if (not -f $file)
+                    {
+                        print "Fetching: $url ... ";
+                        if (getstore($url, $file) == 200)
+                        {
+                            $fetched{$file} = 1;
+                            print "SUCCESS\n";
+                        }
+                        else
+                        {
+                            print "FAILED\n";
+                        }
+                    }
+                    else
+                    {
+                        $fetched{$file} = 1;
+                    }
+                }
+            }
+        }
+    }
+}
+
+print "Cleaning...\n";
+find({ wanted => \&clean_files, no_chdir => 1 }, $outDir);
+sub clean_files
+{
+    if (-f $_ and not defined $fetched{$_})
+    {
+        print "Deleting: $_\n";
+        unlink($_);
+    }
+}

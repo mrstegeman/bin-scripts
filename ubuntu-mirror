@@ -1,0 +1,67 @@
+#!/usr/bin/bash
+
+gpgdir="/tmp/ubuntu-gpg"
+keyringdeb="http://mirror.pnl.gov/ubuntu//pool/main/u/ubuntu-keyring/ubuntu-keyring_2012.05.19_all.deb"
+
+cd /tmp
+
+# Download Ubuntu's keyring
+wget -q "$keyringdeb" -O ubuntu-keyring.deb
+bsdtar xf ubuntu-keyring.deb data.tar.gz
+tar --strip-components=4 -xzf data.tar.gz ./usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+# Create a keyring and import Ubuntu's key
+mkdir -p "$gpgdir"
+gpg --no-default-keyring --keyring "$gpgdir/trustedkeys.gpg" --import ubuntu-archive-keyring.gpg
+
+# Clean up
+rm -f ubuntu-keyring.deb data.tar.gz ubuntu-archive-keyring.gpg
+
+export GNUPGHOME="$gpgdir"
+
+mountpoint="/run/media/michael/ubuntu-mirror"
+if ! mountpoint -q "$mountpoint"; then
+    echo "Mirror drive not mounted!"
+    exit 1
+fi
+
+outpath="$mountpoint/ubuntu"
+partnerpath="$mountpoint/canonical"
+
+arch="i386,amd64"
+section="main,restricted,universe,multiverse"
+
+dist="precise,precise-security,precise-updates,precise-proposed,precise-backports"
+dist="${dist},quantal,quantal-security,quantal-updates,quantal-proposed,quantal-backports"
+dist="${dist},raring,raring-security,raring-updates,raring-proposed,raring-backports"
+dist="${dist},saucy,saucy-security,saucy-updates,saucy-proposed,saucy-backports"
+
+partnerdist="precise,precise-security,precise-updates,precise-proposed,precise-backports"
+partnerdist="${partnerdist},quantal,quantal-security,quantal-updates,quantal-proposed,quantal-backports"
+partnerdist="${partnerdist},raring,raring-proposed"
+partnerdist="${partnerdist},saucy,saucy-proposed"
+
+method="http"
+host="us.archive.ubuntu.com"
+root="/ubuntu"
+
+debmirror \
+    --no-source \
+    --arch="$arch" \
+    --section="$section" \
+    --dist="$dist" \
+    --method="$method" \
+    --host="$host" \
+    --root="$root" \
+    --progress \
+    "$outpath" && \
+\
+debmirror \
+    --arch="$arch" \
+    --section="partner" \
+    --dist="$partnerdist" \
+    --method="http" \
+    --host="archive.canonical.com" \
+    --root="/" \
+    --progress \
+    "$partnerpath"
