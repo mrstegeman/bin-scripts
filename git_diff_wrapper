@@ -1,3 +1,9 @@
 #!/bin/sh
 
-vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
+if file "$2" | grep -q text ; then
+    vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
+elif file "$5" | grep -q text ; then
+    vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
+else
+    vbindiff "$2" "$5"
+fi
