@@ -47,6 +47,10 @@ method="http"
 host="us.archive.ubuntu.com"
 root="/ubuntu"
 
+partnermethod="http"
+partnerhost="archive.canonical.com"
+partnerroot="/"
+
 debmirror \
     --no-source \
     --arch="$arch" \
@@ -62,8 +66,21 @@ debmirror \
     --arch="$arch" \
     --section="partner" \
     --dist="$partnerdist" \
-    --method="http" \
-    --host="archive.canonical.com" \
-    --root="/" \
+    --method="$partnermethod" \
+    --host="$partnerhost" \
+    --root="$partnerroot" \
     --progress \
     "$partnerpath"
+
+IFS=',' read -ra DIST <<< "$dist"
+IFS=',' read -ra ARCH <<< "$arch"
+for d in "${DIST[@]}"; do
+    for a in "${ARCH[@]}"; do
+        lfile="${outpath}/dists/${d}/Contents-${a}.gz"
+        rfile="${method}://${host}${root}/dists/${d}/Contents-${a}.gz"
+        echo "Fetching: $rfile"
+        if ! wget -q -O "$lfile" "$rfile"; then
+            exit 1
+        fi
+    done
+done
