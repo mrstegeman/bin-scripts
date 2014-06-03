@@ -78,9 +78,11 @@ for d in "${DIST[@]}"; do
     for a in "${ARCH[@]}"; do
         lfile="${outpath}/dists/${d}/Contents-${a}.gz"
         rfile="${method}://${host}${root}/dists/${d}/Contents-${a}.gz"
-        echo "Fetching: $rfile"
+        echo -n "Fetching: $rfile ... "
         if ! wget -q -O "$lfile" "$rfile"; then
+            echo "FAILED"
             exit 1
         fi
+        echo "SUCCESS"
     done
 done
