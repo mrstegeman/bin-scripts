@@ -32,15 +32,9 @@ arch="i386,amd64"
 section="main,restricted,universe,multiverse"
 
 dist="precise,precise-security,precise-updates,precise-proposed,precise-backports"
-dist="${dist},quantal,quantal-security,quantal-updates,quantal-proposed,quantal-backports"
-dist="${dist},raring,raring-security,raring-updates,raring-proposed,raring-backports"
-dist="${dist},saucy,saucy-security,saucy-updates,saucy-proposed,saucy-backports"
 dist="${dist},trusty,trusty-security,trusty-updates,trusty-proposed,trusty-backports"
 
 partnerdist="precise,precise-security,precise-updates,precise-proposed,precise-backports"
-partnerdist="${partnerdist},quantal,quantal-security,quantal-updates,quantal-proposed,quantal-backports"
-partnerdist="${partnerdist},raring,raring-proposed"
-partnerdist="${partnerdist},saucy,saucy-proposed"
 partnerdist="${partnerdist},trusty,trusty-proposed"
 
 method="http"

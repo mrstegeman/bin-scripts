@@ -3,17 +3,21 @@
 use strict;
 use warnings;
 
+use Digest::SHA1;
 use File::Find;
 use File::Path qw(make_path);
 use File::Slurp;
 use LWP::Simple;
+use Term::ANSIColor qw(:constants);
 # Make sure Crypt:SSLEay is also installed
 
 # User-defined variables
 my $outDir = '/run/media/michael/ubuntu-mirror/android/';
 my $baseUrl = 'https://dl-ssl.google.com/android/repository/';
-my $repoXmlBase = 'repository-';        # start at 8
+my $repoXmlBase = 'repository';         # start at 10
+my @oldRepoXmlToKeep = ('', '-5', '-6', '-7', '-8');
 my $addonsXmlBase = 'addons_list-';     # start at 2
+my @oldAddonsXmlToKeep = (1);
 
 # Script begins here
 my $repoXmlUrl = $baseUrl . $repoXmlBase;
@@ -21,44 +25,114 @@ my $repoXmlFile = $outDir . $repoXmlBase;
 
 my %fetched = ();
 
+# Turn on autoflush for STDOUT
+local $| = 1;
+
 make_path($outDir) unless -d $outDir;
 
+foreach my $repo (@oldRepoXmlToKeep)
+{
+    my $url = "${baseUrl}${repoXmlBase}${repo}.xml";
+    my $file = "${outDir}${repoXmlBase}${repo}.xml";
+
+    if (getstore($url, $file) == 200)
+    {
+        $fetched{$file} = 1;
+    }
+}
+
 # Find correct repo XML file, as they tend to increment once in a while.
-my $i = 8;
-while (head($repoXmlUrl . "$i.xml"))
+my $i = 10;
+while (head($repoXmlUrl . "-$i.xml"))
 {
     $i++;
 }
 $i--;
-$repoXmlUrl .= "$i.xml";
-$repoXmlFile .= "$i.xml";
+$repoXmlUrl .= "-$i.xml";
+$repoXmlFile .= "-$i.xml";
 
 if (getstore($repoXmlUrl, $repoXmlFile) != 200)
 {
-    print "Failed to download: $repoXmlUrl\n";
+    print RED "Failed to download: ", RESET, "$repoXmlUrl\n";
     exit 1;
 }
 $fetched{$repoXmlFile} = 1;
 my $repository = read_file($repoXmlFile);
 
-while ($repository =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
+print YELLOW "Parsing repository: ", RESET, "$repoXmlFile\n";
+while ($repository =~ /(<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s*)?
+                        <sdk:url>([^<]+)<\/sdk:url>\s*
+                       (<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s*)?
+                      /gsx)
 {
-    my $url = $baseUrl . $1;
-    my $file = $outDir . $1;
-    if (not -f $file)
+    my $cksum_type = defined($2) ? $2 : (defined($6) ? $6 : undef);
+    my $cksum = defined($3) ? $3 : (defined($7) ? $7 : undef);
+    my $item = $4;
+    my $url;
+    my $file;
+
+    if ($item =~ /^http/)
     {
-        print "Fetching: $url ... ";
-        if (getstore($url, $file) == 200)
+        if ($item =~ /^\Q$baseUrl\E(.+)/)
         {
-            $fetched{$file} = 1;
-            print "SUCCESS\n";
+            $url = $item;
+            $file = $outDir . $1;
         }
         else
         {
-            print "FAILED\n";
+            print RED "Not fetching URL: ", RESET, "$item\n";
+            next;
         }
     }
     else
+    {
+        $url = $baseUrl . $item;
+        $file = $outDir . $item;
+    }
+
+    if (-f $file)
+    {
+        if (verify_hash($file, $cksum, $cksum_type) != 0)
+        {
+            unlink($file);
+        }
+    }
+
+    if (not -f $file)
+    {
+        print YELLOW "Fetching: ", RESET, "$url ... ";
+        my $status = getstore($url, $file);
+
+        if ($status == 200)
+        {
+            if (verify_hash($file, $cksum, $cksum_type) != 0)
+            {
+                print RED "CHECKSUM FAILED!", RESET, "\n";
+                unlink($file);
+            }
+            else
+            {
+                $fetched{$file} = 1;
+                print GREEN "SUCCESS!", RESET, "\n";
+            }
+        }
+        else
+        {
+            print RED "FAILED! ($status)", RESET, "\n";
+        }
+    }
+    else
+    {
+        $fetched{$file} = 1;
+    }
+}
+
+foreach my $addons (@oldAddonsXmlToKeep)
+{
+    my $url = "${baseUrl}${addonsXmlBase}${addons}.xml";
+    my $file = "${outDir}${addonsXmlBase}${addons}.xml";
+
+    if (getstore($url, $file) == 200)
     {
         $fetched{$file} = 1;
     }
@@ -79,12 +153,13 @@ $addonsXmlFile .= "$i.xml";
 
 if (getstore($addonsXmlUrl, $addonsXmlFile) != 200)
 {
-    print "Failed to download: $addonsXmlUrl\n";
+    print RED "Failed to download: ", RESET, "$addonsXmlUrl\n";
     exit 1;
 }
 $fetched{$addonsXmlFile} = 1;
 my $addons = read_file($addonsXmlFile);
 
+print "\n", YELLOW "Parsing addon: ", RESET, "$addonsXmlFile\n";
 while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
 {
     my $u = $1;
@@ -93,7 +168,7 @@ while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
     my $newBaseDir = '';
     if ($u =~ /^http/)
     {
-        if ($u =~ /^$baseUrl/)
+        if ($u =~ /^\Q$baseUrl\E/)
         {
             $url = $u;
             my $tmpFile = substr($u, length($baseUrl));
@@ -107,12 +182,18 @@ while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
         }
         else
         {
-            print "Not fetching URL: $u\n";
+            print RED "Not fetching URL: ", RESET, "$u\n";
         }
     }
     else
     {
         $url = $baseUrl . $u;
+        $newBaseDir = substr($u, 0, rindex($u, '/') + 1);
+        if (defined $newBaseDir)
+        {
+            my $tmpDir = $outDir . $newBaseDir;
+            make_path($tmpDir) unless -d $tmpDir;
+        }
         $file = $outDir . $u;
     }
     
@@ -122,47 +203,114 @@ while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
         {
             $fetched{$file} = 1;
             my $addon = read_file($file);
-            while ($addon =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
+            print "\n", YELLOW "Parsing addon: ", RESET, "$file\n";
+            while ($addon =~ /(<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s*)?
+                               <sdk:url>([^<]+)<\/sdk:url>\s*
+                              (<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s*)?
+                             /gsx)
             {
-                my $a = $1;
+                my $cksum_type = defined($2) ? $2 : (defined($6) ? $6 : undef);
+                my $cksum = defined($3) ? $3 : (defined($7) ? $7 : undef);
+                my $a = $4;
+
                 if ($a =~ /^http/)
                 {
-                    print "Not fetching URL: $a\n";
+                    if ($a =~ /^\Q$baseUrl\E(.+)/)
+                    {
+                        $url = $a;
+                        $file = $outDir . $1;
+                    }
+                    else
+                    {
+                        print RED "Not fetching URL: ", RESET, "$a\n";
+                        next;
+                    }
                 }
                 else
                 {
                     $url = $baseUrl . $newBaseDir . $a;
                     $file = $outDir . $newBaseDir . $a;
-                    if (not -f $file)
+                }
+
+                if (-f $file)
+                {
+                    if (verify_hash($file, $cksum, $cksum_type) != 0)
                     {
-                        print "Fetching: $url ... ";
-                        if (getstore($url, $file) == 200)
+                        unlink($file);
+                    }
+                }
+
+                if (not -f $file)
+                {
+                    print YELLOW "Fetching: ", RESET, "$url ... ";
+                    my $status = getstore($url, $file);
+
+                    if ($status == 200)
+                    {
+                        if (verify_hash($file, $cksum, $cksum_type) != 0)
                         {
-                            $fetched{$file} = 1;
-                            print "SUCCESS\n";
+                            print RED "CHECKSUM FAILED!", RESET, "\n";
+                            unlink($file);
                         }
                         else
                         {
-                            print "FAILED\n";
+                            $fetched{$file} = 1;
+                            print GREEN "SUCCESS!", RESET, "\n";
                         }
                     }
                     else
                     {
-                        $fetched{$file} = 1;
+                        print RED "FAILED! ($status)", RESET, "\n";
                     }
+                }
+                else
+                {
+                    $fetched{$file} = 1;
                 }
             }
         }
     }
 }
 
-print "Cleaning...\n";
+print "\nCleaning...\n";
 find({ wanted => \&clean_files, no_chdir => 1 }, $outDir);
 sub clean_files
 {
     if (-f $_ and not defined $fetched{$_})
     {
-        print "Deleting: $_\n";
+        print YELLOW "Deleting: ", RESET, "$_\n";
         unlink($_);
     }
+}
+
+sub verify_hash
+{
+    my ($fname, $hash, $hash_type) = @_;
+
+    if (not defined($hash) ||
+        not defined($hash_type) ||
+        lc($hash_type) ne 'sha1')
+    {
+        return 0;
+    }
+
+    $hash = lc($hash);
+
+    my $fh;
+    unless (open $fh, $fname)
+    {
+        return 1;
+    }
+
+    my $sha1 = Digest::SHA1->new;
+    $sha1->addfile($fh);
+
+    my $this_hash = lc($sha1->hexdigest);
+
+    if ($this_hash =~ /^$hash$/)
+    {
+        return 0;
+    }
+
+    return 1;
 }
