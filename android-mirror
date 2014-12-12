@@ -24,6 +24,7 @@ my $repoXmlUrl = $baseUrl . $repoXmlBase;
 my $repoXmlFile = $outDir . $repoXmlBase;
 
 my %fetched = ();
+my $repository = "";
 
 # Turn on autoflush for STDOUT
 local $| = 1;
@@ -38,6 +39,7 @@ foreach my $repo (@oldRepoXmlToKeep)
     if (getstore($url, $file) == 200)
     {
         $fetched{$file} = 1;
+        $repository .= read_file($file);
     }
 }
 
@@ -57,7 +59,7 @@ if (getstore($repoXmlUrl, $repoXmlFile) != 200)
     exit 1;
 }
 $fetched{$repoXmlFile} = 1;
-my $repository = read_file($repoXmlFile);
+$repository .= read_file($repoXmlFile);
 
 print YELLOW "Parsing repository: ", RESET, "$repoXmlFile\n";
 while ($repository =~ /(<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s*)?
@@ -127,14 +129,17 @@ while ($repository =~ /(<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s
     }
 }
 
-foreach my $addons (@oldAddonsXmlToKeep)
+my $addons = "";
+
+foreach my $addonsXml (@oldAddonsXmlToKeep)
 {
-    my $url = "${baseUrl}${addonsXmlBase}${addons}.xml";
-    my $file = "${outDir}${addonsXmlBase}${addons}.xml";
+    my $url = "${baseUrl}${addonsXmlBase}${addonsXml}.xml";
+    my $file = "${outDir}${addonsXmlBase}${addonsXml}.xml";
 
     if (getstore($url, $file) == 200)
     {
         $fetched{$file} = 1;
+        $addons .= read_file($file);
     }
 }
 
@@ -157,7 +162,7 @@ if (getstore($addonsXmlUrl, $addonsXmlFile) != 200)
     exit 1;
 }
 $fetched{$addonsXmlFile} = 1;
-my $addons = read_file($addonsXmlFile);
+$addons .= read_file($addonsXmlFile);
 
 print "\n", YELLOW "Parsing addon: ", RESET, "$addonsXmlFile\n";
 while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
