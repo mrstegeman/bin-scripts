@@ -4,9 +4,10 @@
 set -f
 
 usage() {
-    echo "A simple random password generator"
-    echo "Usage: $(basename "$0") [OPTION]... -n <num>"
     cat <<EOF
+A simple random password generator.
+
+Usage: $(basename "$0") [OPTION]... -n <num>
 
 Options:
     -a          Use alpha-numeric characters only.
