@@ -62,9 +62,9 @@ $fetched{$repoXmlFile} = 1;
 $repository .= read_file($repoXmlFile);
 
 print YELLOW "Parsing repository: ", RESET, "$repoXmlFile\n";
-while ($repository =~ /(<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s*)?
+while ($repository =~ /(<sdk:checksum\s*type=['"]([^'"]+)['"]>([^<]+)<\/sdk:checksum>\s*)?
                         <sdk:url>([^<]+)<\/sdk:url>\s*
-                       (<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s*)?
+                       (<sdk:checksum\s*type=['"]([^'"]+)['"]>([^<]+)<\/sdk:checksum>\s*)?
                       /gsx)
 {
     my $cksum_type = defined($2) ? $2 : (defined($6) ? $6 : undef);
@@ -209,9 +209,9 @@ while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
             $fetched{$file} = 1;
             my $addon = read_file($file);
             print "\n", YELLOW "Parsing addon: ", RESET, "$file\n";
-            while ($addon =~ /(<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s*)?
+            while ($addon =~ /(<sdk:checksum\s*type=['"]([^'"]+)['"]>([^<]+)<\/sdk:checksum>\s*)?
                                <sdk:url>([^<]+)<\/sdk:url>\s*
-                              (<sdk:checksum\s*type="([^"]+)">([^<]+)<\/sdk:checksum>\s*)?
+                              (<sdk:checksum\s*type=['"]([^'"]+)['"]>([^<]+)<\/sdk:checksum>\s*)?
                              /gsx)
             {
                 my $cksum_type = defined($2) ? $2 : (defined($6) ? $6 : undef);

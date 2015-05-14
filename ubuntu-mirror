@@ -33,9 +33,11 @@ section="main,restricted,universe,multiverse"
 
 dist="precise,precise-security,precise-updates,precise-proposed,precise-backports"
 dist="${dist},trusty,trusty-security,trusty-updates,trusty-proposed,trusty-backports"
+dist="${dist},vivid,vivid-security,vivid-updates,vivid-proposed,vivid-backports"
 
 partnerdist="precise,precise-security,precise-updates,precise-proposed,precise-backports"
 partnerdist="${partnerdist},trusty,trusty-proposed"
+partnerdist="${partnerdist},vivid,vivid-proposed"
 
 method="http"
 host="us.archive.ubuntu.com"
