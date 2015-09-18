@@ -14,8 +14,8 @@ use Term::ANSIColor qw(:constants);
 # User-defined variables
 my $outDir = '/run/media/michael/ubuntu-mirror/android/';
 my $baseUrl = 'https://dl-ssl.google.com/android/repository/';
-my $repoXmlBase = 'repository';         # start at 10
-my @oldRepoXmlToKeep = ('', '-5', '-6', '-7', '-8');
+my $repoXmlBase = 'repository';         # start at 11
+my @oldRepoXmlToKeep = ('', '-5', '-6', '-7', '-8', '-10');
 my $addonsXmlBase = 'addons_list-';     # start at 2
 my @oldAddonsXmlToKeep = (1);
 
@@ -44,7 +44,7 @@ foreach my $repo (@oldRepoXmlToKeep)
 }
 
 # Find correct repo XML file, as they tend to increment once in a while.
-my $i = 10;
+my $i = 11;
 while (head($repoXmlUrl . "-$i.xml"))
 {
     $i++;
