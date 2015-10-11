@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Digest::SHA1;
+use Digest::SHA;
 use File::Find;
 use File::Path qw(make_path);
 use File::Slurp;
@@ -12,10 +12,10 @@ use Term::ANSIColor qw(:constants);
 # Make sure Crypt:SSLEay is also installed
 
 # User-defined variables
-my $outDir = '/run/media/michael/ubuntu-mirror/android/';
+my $outDir = '/run/media/michael/ubuntu-mirror/android/repository/';
 my $baseUrl = 'https://dl-ssl.google.com/android/repository/';
-my $repoXmlBase = 'repository';         # start at 11
-my @oldRepoXmlToKeep = ('', '-5', '-6', '-7', '-8', '-10');
+my $repoXmlBase = 'repository';         # start at 12
+my @oldRepoXmlToKeep = ('', '-5', '-6', '-7', '-8', '-10', '-11');
 my $addonsXmlBase = 'addons_list-';     # start at 2
 my @oldAddonsXmlToKeep = (1);
 
@@ -44,7 +44,7 @@ foreach my $repo (@oldRepoXmlToKeep)
 }
 
 # Find correct repo XML file, as they tend to increment once in a while.
-my $i = 11;
+my $i = 12;
 while (head($repoXmlUrl . "-$i.xml"))
 {
     $i++;
@@ -202,7 +202,7 @@ while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
         $file = $outDir . $u;
     }
     
-    if ($url ne '' and $file ne '')
+    if ($url ne '' and $file ne '' and not exists $fetched{$file})
     {
         if (getstore($url, $file) == 200)
         {
@@ -307,7 +307,7 @@ sub verify_hash
         return 1;
     }
 
-    my $sha1 = Digest::SHA1->new;
+    my $sha1 = Digest::SHA->new;
     $sha1->addfile($fh);
 
     my $this_hash = lc($sha1->hexdigest);

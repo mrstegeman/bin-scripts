@@ -7,7 +7,7 @@ Some useful scripts from my home directory
 * android-mirror
     * Mirrors the Android SDK repo.
 * find-etc-orphans
-    * Find files in `/etc` that are not own by any package (Arch Linux only).
+    * Find files in `/etc` that are not owned by any package (Arch Linux only).
 * git\_diff\_wrapper
     * Wrapper to use vimdiff as the git diff tool -- set in `~/.gitconfig`
 * prettyxml
