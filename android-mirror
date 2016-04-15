@@ -64,14 +64,16 @@ $fetched{$repoXmlFile} = 1;
 $repository .= read_file($repoXmlFile);
 
 print YELLOW "Parsing repository: ", RESET, "$repoXmlFile\n";
-while ($repository =~ /(<sdk:checksum\s*type=['"]([^'"]+)['"]>([^<]+)<\/sdk:checksum>\s*)?
-                        <sdk:url>([^<]+)<\/sdk:url>\s*
-                       (<sdk:checksum\s*type=['"]([^'"]+)['"]>([^<]+)<\/sdk:checksum>\s*)?
+while ($repository =~ /(<(sdk:)?checksum(\s+type=['"](?<cksum_type_1>[^'"]+)['"])?>(?<cksum_1>[^<]+)<\/(sdk:)?checksum>\s*)?
+                        <(sdk:)?url>(?<url>[^<]+)<\/(sdk:)?url>\s*
+                       (<(sdk:)?checksum(\s+type=['"](?<cksum_type_2>[^'"]+)['"])?>(?<cksum_2>[^<]+)<\/(sdk:)?checksum>\s*)?
                       /gsx)
 {
-    my $cksum_type = defined($2) ? $2 : (defined($6) ? $6 : undef);
-    my $cksum = defined($3) ? $3 : (defined($7) ? $7 : undef);
-    my $item = $4;
+    my $cksum_type = defined($+{cksum_type_1}) ? $+{cksum_type_1} :
+                         (defined($+{cksum_type_2}) ? $+{cksum_type_2} : 'sha1');
+    my $cksum = defined($+{cksum_1}) ? $+{cksum_1} :
+                    (defined($+{cksum_2}) ? $+{cksum_2} : undef);
+    my $item = $+{url};
     my $url;
     my $file;
 
@@ -167,9 +169,9 @@ $fetched{$addonsXmlFile} = 1;
 $addons .= read_file($addonsXmlFile);
 
 print "\n", YELLOW "Parsing addon: ", RESET, "$addonsXmlFile\n";
-while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
+while ($addons =~ /<(sdk:)?url>([^<]+)<\/(sdk:)?url>/g)
 {
-    my $u = $1;
+    my $u = $2;
     my $url = '';
     my $file = '';
     my $newBaseDir = '';
@@ -211,14 +213,17 @@ while ($addons =~ /<sdk:url>([^<]+)<\/sdk:url>/g)
             $fetched{$file} = 1;
             my $addon = read_file($file);
             print "\n", YELLOW "Parsing addon: ", RESET, "$file\n";
-            while ($addon =~ /(<sdk:checksum\s*type=['"]([^'"]+)['"]>([^<]+)<\/sdk:checksum>\s*)?
-                               <sdk:url>([^<]+)<\/sdk:url>\s*
-                              (<sdk:checksum\s*type=['"]([^'"]+)['"]>([^<]+)<\/sdk:checksum>\s*)?
+            while ($addon =~ /(<(sdk:)?checksum(\s+type=['"](?<cksum_type_1>[^'"]+)['"])?>(?<cksum_1>[^<]+)<\/(sdk:)?checksum>\s*)?
+                               <(sdk:)?url>(?<url>[^<]+)<\/(sdk:)?url>\s*
+                              (<(sdk:)?checksum(\s+type=['"](?<cksum_type_2>[^'"]+)['"])?>(?<cksum_2>[^<]+)<\/(sdk:)?checksum>\s*)?
                              /gsx)
             {
-                my $cksum_type = defined($2) ? $2 : (defined($6) ? $6 : undef);
-                my $cksum = defined($3) ? $3 : (defined($7) ? $7 : undef);
-                my $a = $4;
+                my $cksum_type = defined($+{cksum_type_1}) ? $+{cksum_type_1} :
+                                     (defined($+{cksum_type_2}) ? $+{cksum_type_2} :
+                                          'sha1');
+                my $cksum = defined($+{cksum_1}) ? $+{cksum_1} :
+                                (defined($+{cksum_2}) ? $+{cksum_2} : undef);
+                my $a = $+{url};
 
                 if ($a =~ /^http/)
                 {
