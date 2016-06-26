@@ -12,6 +12,7 @@ Usage: $(basename "$0") [OPTION]... -n <num>
 Options:
     -a          Use alpha-numeric characters only.
     -h          Print this message and exit.
+    -l          Use smaller list of special characters.
     -n <num>    Number of characters in password.
     -s <list>   Use this list of consecutive special characters.
 EOF
@@ -20,11 +21,15 @@ EOF
 alphanum=0
 num=0
 special=""
+less_special=0
 
-while getopts "ahn:s:" opt; do
+while getopts "ahln:s:" opt; do
     case $opt in
         a)
             alphanum=1
+            ;;
+        l)
+            less_special=1
             ;;
         n)
             num=$OPTARG
@@ -56,8 +61,12 @@ chars=(a b c d e f g h i j k l m n o p q r s t u v w x y z
 
 if [ $alphanum -eq 0 ]; then
     if [ -z "$special" ]; then
-        chars=("${chars[@]}" \` \~ \! \@ \# \$ \% \^ \& \* \( \) \- \_
-                \+ \= \[ \{ \] \} \\ \| \; \: \' \" \< \> \? \, \. \/)
+        if [ $less_special -eq 0 ]; then
+            chars=("${chars[@]}" \` \~ \! \@ \# \$ \% \^ \& \* \( \) \- \_
+                    \+ \= \[ \{ \] \} \\ \| \; \: \' \" \< \> \? \, \. \/)
+        else
+            chars=("${chars[@]}" \! \@ \# \$ \% \^ \& \* \- \_ \+ \= \| \?)
+        fi
     else
         i=0
         while [ $i -lt ${#special} ]; do
