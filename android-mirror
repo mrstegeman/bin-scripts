@@ -18,6 +18,8 @@ my $outDir = '/run/media/michael/ubuntu-mirror/android/repository/';
 my $baseUrl = 'https://dl-ssl.google.com/android/repository/';
 my $repoXmlBase = 'repository';         # start at 12
 my @oldRepoXmlToKeep = ('', '-5', '-6', '-7', '-8', '-10', '-11');
+my $repo2XmlBase = 'repository2-';      # start at 1
+my @oldRepo2XmlToKeep = ();
 my $addonsXmlBase = 'addons_list-';     # start at 3
 my @oldAddonsXmlToKeep = (1, 2);
 
@@ -68,6 +70,112 @@ while ($repository =~ /(<(sdk:)?checksum(\s+type=['"](?<cksum_type_1>[^'"]+)['"]
                         <(sdk:)?url>(?<url>[^<]+)<\/(sdk:)?url>\s*
                        (<(sdk:)?checksum(\s+type=['"](?<cksum_type_2>[^'"]+)['"])?>(?<cksum_2>[^<]+)<\/(sdk:)?checksum>\s*)?
                       /gsx)
+{
+    my $cksum_type = defined($+{cksum_type_1}) ? $+{cksum_type_1} :
+                         (defined($+{cksum_type_2}) ? $+{cksum_type_2} : 'sha1');
+    my $cksum = defined($+{cksum_1}) ? $+{cksum_1} :
+                    (defined($+{cksum_2}) ? $+{cksum_2} : undef);
+    my $item = $+{url};
+    my $url;
+    my $file;
+
+    if ($item =~ /^http/)
+    {
+        if ($item =~ /^\Q$baseUrl\E(.+)/)
+        {
+            $url = $item;
+            $file = $outDir . $1;
+        }
+        else
+        {
+            print RED "Not fetching URL: ", RESET, "$item\n";
+            next;
+        }
+    }
+    else
+    {
+        $url = $baseUrl . $item;
+        $file = $outDir . $item;
+    }
+
+    if (-f $file)
+    {
+        if (verify_hash($file, $cksum, $cksum_type) != 0)
+        {
+            unlink($file);
+        }
+    }
+
+    if (not -f $file)
+    {
+        print YELLOW "Fetching: ", RESET, "$url ... ";
+        my $status = getstore($url, $file);
+
+        if ($status == 200)
+        {
+            if (verify_hash($file, $cksum, $cksum_type) != 0)
+            {
+                print RED "CHECKSUM FAILED!", RESET, "\n";
+                unlink($file);
+            }
+            else
+            {
+                $fetched{$file} = 1;
+                print GREEN "SUCCESS!", RESET, "\n";
+            }
+        }
+        else
+        {
+            print RED "FAILED! ($status)", RESET, "\n";
+        }
+    }
+    else
+    {
+        $fetched{$file} = 1;
+    }
+}
+
+# repository2 (Android Studio)
+my $repository2 = "";
+
+foreach my $repo (@oldRepo2XmlToKeep)
+{
+    my $url = "${baseUrl}${repo2XmlBase}${repo}.xml";
+    my $file = "${outDir}${repo2XmlBase}${repo}.xml";
+
+    if (getstore($url, $file) == 200)
+    {
+        $fetched{$file} = 1;
+        $repository2 .= read_file($file);
+    }
+}
+
+my $repo2XmlUrl = $baseUrl . $repo2XmlBase;
+my $repo2XmlFile = $outDir . $repo2XmlBase;
+
+# Find correct repo2 XML file, as they tend to increment once in a while.
+$i = 1;
+while (head($repo2XmlUrl . "$i.xml"))
+{
+    $i++;
+}
+$i--;
+$repo2XmlUrl .= "$i.xml";
+$repo2XmlFile .= "$i.xml";
+
+if (getstore($repo2XmlUrl, $repo2XmlFile) != 200)
+{
+    print RED "Failed to download: ", RESET, "$repo2XmlUrl\n";
+    exit 1;
+}
+$fetched{$repo2XmlFile} = 1;
+$repository2 .= read_file($repo2XmlFile);
+
+print "\n", YELLOW "Parsing repository2: ", RESET, "$repo2XmlFile\n";
+while ($repository2 =~ /(<(sdk:)?checksum(\s+type=['"](?<cksum_type_1>[^'"]+)['"])?>(?<cksum_1>[^<]+)<\/(sdk:)?checksum>\s*)?
+                         <(sdk:)?url>(?<url>[^<]+)<\/(sdk:)?url>\s*
+                        (<(sdk:)?checksum(\s+type=['"](?<cksum_type_2>[^'"]+)['"])?>(?<cksum_2>[^<]+)<\/(sdk:)?checksum>\s*)?
+                       /gsx)
 {
     my $cksum_type = defined($+{cksum_type_1}) ? $+{cksum_type_1} :
                          (defined($+{cksum_type_2}) ? $+{cksum_type_2} : 'sha1');
@@ -313,6 +421,7 @@ sub verify_hash
     }
 
     $hash = lc($hash);
+    $hash =~ s/^\s+|\s+$//g;
 
     my $fh;
     unless (open $fh, $fname)
