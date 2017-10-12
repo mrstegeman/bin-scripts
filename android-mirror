@@ -11,9 +11,6 @@ use LWP::Simple;
 use Term::ANSIColor qw(:constants);
 # Make sure Crypt::SSLeay is also installed
 
-# User-defined variables
-my $outDir = '/run/media/michael/ubuntu-mirror/android/repository/';
-
 # Constants
 my $baseUrl = 'https://dl-ssl.google.com/android/repository/';
 my $repoXmlBase = 'repository';         # start at 12
@@ -24,6 +21,16 @@ my $addonsXmlBase = 'addons_list-';     # start at 3
 my @oldAddonsXmlToKeep = (1, 2);
 
 # Script begins here
+my $num_args = $#ARGV + 1;
+if ($num_args != 1) {
+    print "Usage: $0 directory\n";
+    exit;
+}
+
+# User-defined variables
+my $outDir = $ARGV[0];
+$outDir =~ s/\/*$/\//;
+
 my $repoXmlUrl = $baseUrl . $repoXmlBase;
 my $repoXmlFile = $outDir . $repoXmlBase;
 
