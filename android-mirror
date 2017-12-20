@@ -1,450 +1,263 @@
-#!/usr/bin/perl
+#!/usr/bin/env python3
 
-use strict;
-use warnings;
+"""
+This script will mirror the entire Android SDK repository.
 
-use Digest::SHA;
-use File::Find;
-use File::Path qw(make_path);
-use File::Slurp;
-use LWP::Simple;
-use Term::ANSIColor qw(:constants);
-# Make sure Crypt::SSLeay is also installed
+It will pull in all known legacy manifests (used by older SDK installations),
+as well as the latest. Every package listed in those manifests will be
+downloaded. All add-on repositories will also be parsed. The only packages that
+will not be mirrored are those that are not located on the main repository
+site.
+"""
 
-# Constants
-my $baseUrl = 'https://dl-ssl.google.com/android/repository/';
-my $repoXmlBase = 'repository';         # start at 12
-my @oldRepoXmlToKeep = ('', '-5', '-6', '-7', '-8', '-10', '-11');
-my $repo2XmlBase = 'repository2-';      # start at 1
-my @oldRepo2XmlToKeep = ();
-my $addonsXmlBase = 'addons_list-';     # start at 3
-my @oldAddonsXmlToKeep = (1, 2);
+import hashlib
+import os
+import re
+import sys
+import xml.etree.ElementTree as ET
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
-# Script begins here
-my $num_args = $#ARGV + 1;
-if ($num_args != 1) {
-    print "Usage: $0 directory\n";
-    exit;
-}
-
-# User-defined variables
-my $outDir = $ARGV[0];
-$outDir =~ s/\/*$/\//;
-
-my $repoXmlUrl = $baseUrl . $repoXmlBase;
-my $repoXmlFile = $outDir . $repoXmlBase;
-
-my %fetched = ();
-my $repository = "";
-
-# Turn on autoflush for STDOUT
-local $| = 1;
-
-make_path($outDir) unless -d $outDir;
-
-foreach my $repo (@oldRepoXmlToKeep)
-{
-    my $url = "${baseUrl}${repoXmlBase}${repo}.xml";
-    my $file = "${outDir}${repoXmlBase}${repo}.xml";
-
-    if (getstore($url, $file) == 200)
-    {
-        $fetched{$file} = 1;
-        $repository .= read_file($file);
+BASE_URL = 'https://dl-ssl.google.com/android/repository/'
+REPOS = {
+    'repository': {
+        'keep': [
+            '',
+            '-5',
+            '-6',
+            '-7',
+            '-8',
+            '-10',
+            '-11',
+        ],
+        'start': 12,
+        'ns': 'sdk:',
+    },
+    'repository2': {
+        'keep': [],
+        'start': 1,
+        'ns': '',
+    },
+    'addons_list': {
+        'keep': [
+            '-1',
+            '-2',
+        ],
+        'start': 3,
+        'ns': 'sdk:',
     }
 }
 
-# Find correct repo XML file, as they tend to increment once in a while.
-my $i = 12;
-while (head($repoXmlUrl . "-$i.xml"))
-{
-    $i++;
-}
-$i--;
-$repoXmlUrl .= "-$i.xml";
-$repoXmlFile .= "-$i.xml";
+if sys.stdout.isatty() and os.name != 'nt':
+    RED = '\033[31m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    RESET = '\033[39m'
+else:
+    RED = ''
+    GREEN = ''
+    YELLOW = ''
+    RESET = ''
 
-if (getstore($repoXmlUrl, $repoXmlFile) != 200)
-{
-    print RED "Failed to download: ", RESET, "$repoXmlUrl\n";
-    exit 1;
-}
-$fetched{$repoXmlFile} = 1;
-$repository .= read_file($repoXmlFile);
+__FETCHED = set()
 
-print YELLOW "Parsing repository: ", RESET, "$repoXmlFile\n";
-while ($repository =~ /(<(sdk:)?checksum(\s+type=['"](?<cksum_type_1>[^'"]+)['"])?>(?<cksum_1>[^<]+)<\/(sdk:)?checksum>\s*)?
-                        <(sdk:)?url>(?<url>[^<]+)<\/(sdk:)?url>\s*
-                       (<(sdk:)?checksum(\s+type=['"](?<cksum_type_2>[^'"]+)['"])?>(?<cksum_2>[^<]+)<\/(sdk:)?checksum>\s*)?
-                      /gsx)
-{
-    my $cksum_type = defined($+{cksum_type_1}) ? $+{cksum_type_1} :
-                         (defined($+{cksum_type_2}) ? $+{cksum_type_2} : 'sha1');
-    my $cksum = defined($+{cksum_1}) ? $+{cksum_1} :
-                    (defined($+{cksum_2}) ? $+{cksum_2} : undef);
-    my $item = $+{url};
-    my $url;
-    my $file;
 
-    if ($item =~ /^http/)
-    {
-        if ($item =~ /^\Q$baseUrl\E(.+)/)
-        {
-            $url = $item;
-            $file = $outDir . $1;
-        }
-        else
-        {
-            print RED "Not fetching URL: ", RESET, "$item\n";
-            next;
-        }
-    }
-    else
-    {
-        $url = $baseUrl . $item;
-        $file = $outDir . $item;
-    }
+def hash_file(fname):
+    """
+    Compute the SHA-1 hash of the given file.
 
-    if (-f $file)
-    {
-        if (verify_hash($file, $cksum, $cksum_type) != 0)
-        {
-            unlink($file);
-        }
-    }
+    fname -- File to hash
+    """
+    try:
+        with open(fname, 'rb') as f:
+            sha1 = hashlib.sha1()
+            while True:
+                data = f.read(4096)
+                if not data:
+                    break
+                sha1.update(data)
 
-    if (not -f $file)
-    {
-        print YELLOW "Fetching: ", RESET, "$url ... ";
-        my $status = getstore($url, $file);
+            return sha1.hexdigest()
+    except (OSError, IOError):
+        return None
 
-        if ($status == 200)
-        {
-            if (verify_hash($file, $cksum, $cksum_type) != 0)
-            {
-                print RED "CHECKSUM FAILED!", RESET, "\n";
-                unlink($file);
-            }
-            else
-            {
-                $fetched{$file} = 1;
-                print GREEN "SUCCESS!", RESET, "\n";
-            }
-        }
-        else
-        {
-            print RED "FAILED! ($status)", RESET, "\n";
-        }
-    }
-    else
-    {
-        $fetched{$file} = 1;
-    }
-}
 
-# repository2 (Android Studio)
-my $repository2 = "";
+def download_to_file(url, fname, cksum=None):
+    """
+    Download (GET) the given URL to a file.
 
-foreach my $repo (@oldRepo2XmlToKeep)
-{
-    my $url = "${baseUrl}${repo2XmlBase}${repo}.xml";
-    my $file = "${outDir}${repo2XmlBase}${repo}.xml";
+    url -- The URL to GET
+    fname -- The name of the file to save the content to
+    cksum -- (Optional) Checksum to verify against
+    """
+    try:
+        if os.path.isfile(fname):
+            if cksum is not None and cksum == hash_file(fname):
+                __FETCHED.add(fname)
+                return True
+            else:
+                os.unlink(fname)
 
-    if (getstore($url, $file) == 200)
-    {
-        $fetched{$file} = 1;
-        $repository2 .= read_file($file);
-    }
-}
+        dname = os.path.dirname(fname)
+        if not os.path.isdir(dname):
+            try:
+                os.makedirs(dname)
+            except OSError:
+                print('{}FAILED!{}'.format(RED, RESET))
+                return False
 
-my $repo2XmlUrl = $baseUrl . $repo2XmlBase;
-my $repo2XmlFile = $outDir . $repo2XmlBase;
+        print('{}Fetching: {}{} ... '.format(YELLOW, RESET, url), end='')
+        with urlopen(url) as response:
+            with open(fname, 'wb') as f:
+                while True:
+                    chunk = response.read(4096)
+                    if not chunk:
+                        break
 
-# Find correct repo2 XML file, as they tend to increment once in a while.
-$i = 1;
-while (head($repo2XmlUrl . "$i.xml"))
-{
-    $i++;
-}
-$i--;
-$repo2XmlUrl .= "$i.xml";
-$repo2XmlFile .= "$i.xml";
+                    f.write(chunk)
 
-if (getstore($repo2XmlUrl, $repo2XmlFile) != 200)
-{
-    print RED "Failed to download: ", RESET, "$repo2XmlUrl\n";
-    exit 1;
-}
-$fetched{$repo2XmlFile} = 1;
-$repository2 .= read_file($repo2XmlFile);
+        if cksum is not None and cksum != hash_file(fname):
+            os.unlink(fname)
+            print('{}CHECKSUM FAILED!{}'.format(RED, RESET))
+            return False
 
-print "\n", YELLOW "Parsing repository2: ", RESET, "$repo2XmlFile\n";
-while ($repository2 =~ /(<(sdk:)?checksum(\s+type=['"](?<cksum_type_1>[^'"]+)['"])?>(?<cksum_1>[^<]+)<\/(sdk:)?checksum>\s*)?
-                         <(sdk:)?url>(?<url>[^<]+)<\/(sdk:)?url>\s*
-                        (<(sdk:)?checksum(\s+type=['"](?<cksum_type_2>[^'"]+)['"])?>(?<cksum_2>[^<]+)<\/(sdk:)?checksum>\s*)?
-                       /gsx)
-{
-    my $cksum_type = defined($+{cksum_type_1}) ? $+{cksum_type_1} :
-                         (defined($+{cksum_type_2}) ? $+{cksum_type_2} : 'sha1');
-    my $cksum = defined($+{cksum_1}) ? $+{cksum_1} :
-                    (defined($+{cksum_2}) ? $+{cksum_2} : undef);
-    my $item = $+{url};
-    my $url;
-    my $file;
+        __FETCHED.add(fname)
+        print('{}SUCCESS!{}'.format(GREEN, RESET))
+        return True
+    except (OSError, IOError, HTTPError) as e:
+        print('{}FAILED!{}'.format(RED, RESET))
+        return False
 
-    if ($item =~ /^http/)
-    {
-        if ($item =~ /^\Q$baseUrl\E(.+)/)
-        {
-            $url = $item;
-            $file = $outDir . $1;
-        }
-        else
-        {
-            print RED "Not fetching URL: ", RESET, "$item\n";
-            next;
-        }
-    }
-    else
-    {
-        $url = $baseUrl . $item;
-        $file = $outDir . $item;
-    }
 
-    if (-f $file)
-    {
-        if (verify_hash($file, $cksum, $cksum_type) != 0)
-        {
-            unlink($file);
-        }
-    }
+def find_latest_repo(base, start):
+    """
+    Find the latest iteration of the given repo base.
 
-    if (not -f $file)
-    {
-        print YELLOW "Fetching: ", RESET, "$url ... ";
-        my $status = getstore($url, $file);
+    base -- The base repo url
+    start -- The starting iteration point
+    """
+    current = start
+    while True:
+        url = '{}{}-{}.xml'.format(BASE_URL, base, current)
 
-        if ($status == 200)
-        {
-            if (verify_hash($file, $cksum, $cksum_type) != 0)
-            {
-                print RED "CHECKSUM FAILED!", RESET, "\n";
-                unlink($file);
-            }
-            else
-            {
-                $fetched{$file} = 1;
-                print GREEN "SUCCESS!", RESET, "\n";
-            }
-        }
-        else
-        {
-            print RED "FAILED! ($status)", RESET, "\n";
-        }
-    }
-    else
-    {
-        $fetched{$file} = 1;
-    }
-}
+        request = Request(url, method='HEAD')
+        try:
+            with urlopen(request) as response:
+                if response.getcode() != 200:
+                    return current - 1
 
-my $addons = "";
+            current += 1
+        except HTTPError:
+            return current - 1
 
-foreach my $addonsXml (@oldAddonsXmlToKeep)
-{
-    my $url = "${baseUrl}${addonsXmlBase}${addonsXml}.xml";
-    my $file = "${outDir}${addonsXmlBase}${addonsXml}.xml";
 
-    if (getstore($url, $file) == 200)
-    {
-        $fetched{$file} = 1;
-        $addons .= read_file($file);
-    }
-}
+def parse_repo(repo, ns, output_dir, base_url):
+    """
+    Parse an individual XML file.
 
-my $addonsXmlUrl = $baseUrl . $addonsXmlBase;
-my $addonsXmlFile = $outDir . $addonsXmlBase;
+    repo -- The XML file to parse
+    ns -- The namespace prefix for XML elements, i.e. 'sdk:'
+    output_dir -- The output directory to save files to
+    base_url -- The base URL to start from
+    """
+    print('{}Parsing repository: {}{}'.format(YELLOW, RESET, repo))
+    context = ET.iterparse(repo, events=['start-ns', 'end'])
+    namespaces = {}
+    root = None
+    for event, el in context:
+        if event == 'start-ns':
+            namespaces[el[0]] = el[1]
+        else:
+            root = el
 
-# Find correct addons XML file, as they tend to increment once in a while.
-$i = 3;
-while (head($addonsXmlUrl . "$i.xml"))
-{
-    $i++;
-}
-$i--;
-$addonsXmlUrl .= "$i.xml";
-$addonsXmlFile .= "$i.xml";
+    for node in root.findall('.//{}url/..'.format(ns), namespaces):
+        url = node.find('./{}url[1]'.format(ns), namespaces)
+        if url is None:
+            continue
 
-if (getstore($addonsXmlUrl, $addonsXmlFile) != 200)
-{
-    print RED "Failed to download: ", RESET, "$addonsXmlUrl\n";
-    exit 1;
-}
-$fetched{$addonsXmlFile} = 1;
-$addons .= read_file($addonsXmlFile);
+        url = url.text
 
-print "\n", YELLOW "Parsing addon: ", RESET, "$addonsXmlFile\n";
-while ($addons =~ /<(sdk:)?url>([^<]+)<\/(sdk:)?url>/g)
-{
-    my $u = $2;
-    my $url = '';
-    my $file = '';
-    my $newBaseDir = '';
-    if ($u =~ /^http/)
-    {
-        if ($u =~ /^\Q$baseUrl\E/)
-        {
-            $url = $u;
-            my $tmpFile = substr($u, length($baseUrl));
-            $newBaseDir = substr($tmpFile, 0, rindex($tmpFile, '/') + 1);
-            if (defined $newBaseDir)
-            {
-                my $tmpDir = $outDir . $newBaseDir;
-                make_path($tmpDir) unless -d $tmpDir;
-            }
-            $file = $outDir . $tmpFile;
-        }
-        else
-        {
-            print RED "Not fetching URL: ", RESET, "$u\n";
-        }
-    }
-    else
-    {
-        $url = $baseUrl . $u;
-        $newBaseDir = substr($u, 0, rindex($u, '/') + 1);
-        if (defined $newBaseDir)
-        {
-            my $tmpDir = $outDir . $newBaseDir;
-            make_path($tmpDir) unless -d $tmpDir;
-        }
-        $file = $outDir . $u;
-    }
-    
-    if ($url ne '' and $file ne '' and not exists $fetched{$file})
-    {
-        if (getstore($url, $file) == 200)
-        {
-            $fetched{$file} = 1;
-            my $addon = read_file($file);
-            print "\n", YELLOW "Parsing addon: ", RESET, "$file\n";
-            while ($addon =~ /(<(sdk:)?checksum(\s+type=['"](?<cksum_type_1>[^'"]+)['"])?>(?<cksum_1>[^<]+)<\/(sdk:)?checksum>\s*)?
-                               <(sdk:)?url>(?<url>[^<]+)<\/(sdk:)?url>\s*
-                              (<(sdk:)?checksum(\s+type=['"](?<cksum_type_2>[^'"]+)['"])?>(?<cksum_2>[^<]+)<\/(sdk:)?checksum>\s*)?
-                             /gsx)
-            {
-                my $cksum_type = defined($+{cksum_type_1}) ? $+{cksum_type_1} :
-                                     (defined($+{cksum_type_2}) ? $+{cksum_type_2} :
-                                          'sha1');
-                my $cksum = defined($+{cksum_1}) ? $+{cksum_1} :
-                                (defined($+{cksum_2}) ? $+{cksum_2} : undef);
-                my $a = $+{url};
+        cksum = node.find('./{}checksum[1]'.format(ns), namespaces)
+        if cksum is not None:
+            cksum = cksum.text
 
-                if ($a =~ /^http/)
-                {
-                    if ($a =~ /^\Q$baseUrl\E(.+)/)
-                    {
-                        $url = $a;
-                        $file = $outDir . $1;
-                    }
-                    else
-                    {
-                        print RED "Not fetching URL: ", RESET, "$a\n";
-                        next;
-                    }
-                }
-                else
-                {
-                    $url = $baseUrl . $newBaseDir . $a;
-                    my $tmpBaseDir = substr($a, 0, rindex($a, '/') + 1);
-                    if (defined $tmpBaseDir)
-                    {
-                        my $tmpDir = $outDir . $newBaseDir . $tmpBaseDir;
-                        make_path($tmpDir) unless -d $tmpDir;
-                    }
-                    $file = $outDir . $newBaseDir . $a;
-                }
+        if url.startswith('http'):
+            if url.startswith(base_url):
+                url = url[len(base_url):]
+            else:
+                print('{}Not fetching URL: {}{}'.format(YELLOW, RESET, url))
+                continue
 
-                if (-f $file)
-                {
-                    if (verify_hash($file, $cksum, $cksum_type) != 0)
-                    {
-                        unlink($file);
-                    }
-                }
+        full_url = base_url + url
+        fname = os.path.join(output_dir, *url.split('/'))
 
-                if (not -f $file)
-                {
-                    print YELLOW "Fetching: ", RESET, "$url ... ";
-                    my $status = getstore($url, $file);
+        download_to_file(full_url, fname, cksum=cksum)
 
-                    if ($status == 200)
-                    {
-                        if (verify_hash($file, $cksum, $cksum_type) != 0)
-                        {
-                            print RED "CHECKSUM FAILED!", RESET, "\n";
-                            unlink($file);
-                        }
-                        else
-                        {
-                            $fetched{$file} = 1;
-                            print GREEN "SUCCESS!", RESET, "\n";
-                        }
-                    }
-                    else
-                    {
-                        print RED "FAILED! ($status)", RESET, "\n";
-                    }
-                }
-                else
-                {
-                    $fetched{$file} = 1;
-                }
-            }
-        }
-    }
-}
+        if url.endswith('.xml'):
+            dname = os.path.dirname(url) + '/'
+            new_dir = os.path.join(output_dir, *dname.split('/'))
+            parse_repo(fname, ns, new_dir, base_url + dname)
 
-print "\nCleaning...\n";
-find({ wanted => \&clean_files, no_chdir => 1 }, $outDir);
-sub clean_files
-{
-    if (-f $_ and not defined $fetched{$_})
-    {
-        print YELLOW "Deleting: ", RESET, "$_\n";
-        unlink($_);
-    }
-}
 
-sub verify_hash
-{
-    my ($fname, $hash, $hash_type) = @_;
+def cleanup(base_dir):
+    """
+    Clean up the directory, i.e. remove any files that were not in the repo.
 
-    if (not defined($hash) ||
-        not defined($hash_type) ||
-        lc($hash_type) ne 'sha1')
-    {
-        return 0;
-    }
+    base_dir -- Directory to search
+    """
+    for root, dirs, files in os.walk(base_dir, topdown=False):
+        for name in files:
+            fname = os.path.join(root, name)
+            if fname not in __FETCHED:
+                print('{}Deleting: {}{}'.format(YELLOW, RESET, fname))
+                os.unlink(fname)
 
-    $hash = lc($hash);
-    $hash =~ s/^\s+|\s+$//g;
+        for name in dirs:
+            dname = os.path.join(root, name)
+            if not os.listdir(dname):
+                print('{}Deleting: {}{}'.format(YELLOW, RESET, dname))
+                os.rmdir(dname)
 
-    my $fh;
-    unless (open $fh, $fname)
-    {
-        return 1;
-    }
 
-    my $sha1 = Digest::SHA->new;
-    $sha1->addfile($fh);
+def main():
+    """Download and parse known repository files."""
+    if len(sys.argv) < 2:
+        print('Usage: {} directory'.format(__file__))
+        sys.exit(1)
 
-    my $this_hash = lc($sha1->hexdigest);
+    output_dir = re.sub(r'[/\\]*$', os.sep, sys.argv[1])
+    repos_to_parse = []
 
-    if ($this_hash =~ /^$hash$/)
-    {
-        return 0;
-    }
+    if not os.path.isdir(output_dir):
+        try:
+            os.makedirs(output_dir, mode=0o755)
+        except OSError as e:
+            print('{}Failed to create output directory: {}{}'
+                  .format(RED, RESET, e))
+            sys.exit(1)
 
-    return 1;
-}
+    for repo_base, data in REPOS.items():
+        for repo in data['keep']:
+            url = '{}{}{}.xml'.format(BASE_URL, repo_base, repo)
+            fname = os.path.join(output_dir,
+                                 '{}{}.xml'.format(repo_base, repo))
+
+            if download_to_file(url, fname):
+                repos_to_parse.append((fname, data['ns']))
+
+        num = find_latest_repo(repo_base, data['start'])
+        url = '{}{}-{}.xml'.format(BASE_URL, repo_base, num)
+        fname = os.path.join(output_dir, '{}-{}.xml'.format(repo_base, num))
+        if download_to_file(url, fname):
+            repos_to_parse.append((fname, data['ns']))
+        else:
+            sys.exit(1)
+
+    for (repo, ns) in repos_to_parse:
+        parse_repo(repo, ns, output_dir, BASE_URL)
+
+    cleanup(output_dir)
+
+
+if __name__ == '__main__':
+    main()
