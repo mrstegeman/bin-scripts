@@ -1,27 +1,18 @@
-#!/usr/bin/perl
+#!/usr/bin/env python3
 
-use XML::Twig;
-use XML::Parser;
+import sys
+from xml.dom import minidom
 
-my $xml = XML::Twig->new(pretty_print => 'indented');
+INDENT = ' ' * 4
 
-if ($ARGV[0])
-{
-    if (-r $ARGV[0])
-    {
-        open(F, "<$ARGV[0]");
-        $xml->parse(\*F);
-        close(F);
-    }
-    else
-    {
-        print("invalid filename\n");
-        exit(1);
-    }
-}
-else
-{
-    $xml->parse(\*STDIN);
-}
+def prettyprint(fh):
+    print('\n'.join([line for line in
+                     minidom.parse(fh).toprettyxml(indent=INDENT).split('\n')
+                     if line.strip()]))
 
-$xml->print();
+if sys.argv[1:]:
+    for path in sys.argv[1:]:
+        with open(path, 'rt') as fh:
+            prettyprint(fh)
+else:
+    prettyprint(sys.stdin)

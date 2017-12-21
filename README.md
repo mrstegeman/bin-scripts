@@ -11,13 +11,13 @@ Some useful scripts from my home directory
 * git\_diff\_wrapper
     * Wrapper to use vimdiff as the git diff tool -- set in `~/.gitconfig`
 * prettyxml
-    * Perl script to output an XML file or STDIN as properly formatted XML.
+    * Python script to output an XML file or STDIN as properly formatted XML.
 * svn\_diff\_wrapper
     * Wrapper to use vimdiff as the svn diff tool -- set in
-    `~/.subversion/config`
+      `~/.subversion/config`
 * tag-convert
     * Converts ID3 tags from mp3 files to version 2.3 and renames files
-    properly.
+      properly.
 * termcolors
     * Displays terminal color scheme.
 * ubuntu-mirror
