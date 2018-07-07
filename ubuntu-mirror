@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 gpgdir="/tmp/ubuntu-gpg"
-keyringdeb="http://mirror.pnl.gov/ubuntu//pool/main/u/ubuntu-keyring/ubuntu-keyring_2012.05.19_all.deb"
+keyringdeb="http://mirror.pnl.gov/ubuntu/pool/main/u/ubuntu-keyring/ubuntu-keyring_2012.05.19_all.deb"
 
 cd /tmp
 
