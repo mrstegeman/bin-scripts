@@ -1,8 +1,8 @@
 #!/bin/sh
 
-if file "$2" | grep -q -e text -e JSON ; then
+if file "$2" | grep -q -e text -e JSON -e "Generic INItialization configuration"; then
     vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
-elif file "$5" | grep -q -e text -e JSON ; then
+elif file "$5" | grep -q -e text -e JSON -e "Generic INItialization configuration"; then
     vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
 else
     vbindiff "$2" "$5"
