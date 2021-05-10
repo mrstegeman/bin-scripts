@@ -1,9 +1,14 @@
 #!/bin/sh
 
+DIFFTOOL="vim"
+if which -s nvim; then
+    DIFFTOOL="nvim -d"
+fi
+
 if file "$2" | grep -q -e text -e JSON -e "Generic INItialization configuration"; then
-    vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
+    $DIFFTOOL -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
 elif file "$5" | grep -q -e text -e JSON -e "Generic INItialization configuration"; then
-    vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
+    $DIFFTOOL -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$2" "$5"
 else
     vbindiff "$2" "$5"
 fi

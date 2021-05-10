@@ -1,4 +1,9 @@
 #!/bin/sh
 
+DIFFTOOL="vim"
+if which -s nvim; then
+    DIFFTOOL="nvim -d"
+fi
+
 wf=$(echo "$5" | sed -e 's/[\t ]*(working copy)$//')
-vimdiff -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$6" "$wf"
+$DIFFTOOL -c "set wrap" -c "wincmd w" -c "set wrap" -c "wincmd w" "$6" "$wf"
