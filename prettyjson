@@ -11,7 +11,7 @@ def prettyprint(fh):
 
 if sys.argv[1:]:
     for path in sys.argv[1:]:
-        with open(path, 'rt') as fh:
+        with open(path, "rt") as fh:
             prettyprint(fh)
 else:
     prettyprint(sys.stdin)

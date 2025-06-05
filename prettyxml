@@ -3,18 +3,24 @@
 from xml.dom import minidom
 import sys
 
-INDENT = ' ' * 4
+INDENT = " " * 4
 
 
 def prettyprint(fh):
-    print('\n'.join([line for line in
-                     minidom.parse(fh).toprettyxml(indent=INDENT).split('\n')
-                     if line.strip()]))
+    print(
+        "\n".join(
+            [
+                line
+                for line in minidom.parse(fh).toprettyxml(indent=INDENT).split("\n")
+                if line.strip()
+            ]
+        )
+    )
 
 
 if sys.argv[1:]:
     for path in sys.argv[1:]:
-        with open(path, 'rt') as fh:
+        with open(path, "rt") as fh:
             prettyprint(fh)
 else:
     prettyprint(sys.stdin)

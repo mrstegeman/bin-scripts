@@ -2,3 +2,4 @@ particle
 protoc-gen-grpc-swift
 protoc-gen-swift
 rpxc
+swift-test-codecov
