@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 function rename_mp3 {
     eyeD3 --no-color "$1" | pcregrep -q 'track:\s+\d+'
