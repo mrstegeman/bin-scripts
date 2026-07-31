@@ -1,8 +1,11 @@
 #!/bin/sh
 
-DIFFTOOL="vimdiff"
-if which nvim >/dev/null 2>&1; then
+if which vimdiff >/dev/null 2>&1; then
+    DIFFTOOL="vimdiff"
+elif which nvim >/dev/null 2>&1; then
     DIFFTOOL="nvim -d"
+else
+    DIFFTOOL="diff"
 fi
 
 if file "$2" | grep -q -e text -e JSON -e "Generic INItialization configuration"; then
